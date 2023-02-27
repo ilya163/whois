@@ -44,6 +44,8 @@ class Requests:
     @staticmethod
     async def write_api_test(domain, name, answer):
         ''' Загрузка данных в файлы для теста '''
+        if not os.path.exists(PATH_TESTING_DIR):
+            os.mkdir(PATH_TESTING_DIR)
         path_folder = os.path.join(PATH_TESTING_DIR, domain)
         if not os.path.exists(path_folder):
             os.mkdir(path_folder)
