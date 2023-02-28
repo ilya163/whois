@@ -3,24 +3,21 @@ from domains import *
 
 async def async_worker(instance):
     ''' Ассинхронные подключения к АПИ '''
-    request1 = defaultdict(dict, {'main': {'rawdata': {'Registrant Fax Ext': ''}, "owner": ''}})
-    request1 = await instance.run_worker_domain(url="https://api.viewdns.info/whois/", domain="domain", name="whois")
-    request2 = await instance.run_worker_domain(url="https://api.viewdns.info/reverseip/", host="domain",
-                                                name="reverseip")
-    request3 = await instance.run_worker_domain(url="https://api.viewdns.info/iphistory/", domain="domain",
-                                                name="iphistory")
+    request1 = await instance.run_worker_domain(url="https://api.viewdns.info/whois/", domain="domain", apikey=APIKEY, output="json", name="whois")
+    request2 = await instance.run_worker_domain(url="https://api.viewdns.info/reverseip/", host="domain", apikey=APIKEY, output="json", name="reverseip")
+    request3 = await instance.run_worker_domain(url="https://api.viewdns.info/iphistory/", domain="domain", apikey=APIKEY, output="json", name="iphistory")
 
 
     # Формируем запросы для определения ФИО и Email владельца домена
-    registrant_email = regex_rawdata(request1["main"]["rawdata"]["Registrant Fax Ext"])
-    registrant_email = dict(registrant_email).get("Registrant Email")
-    registrant = request1["main"]["owner"]
+    registrant_email = regex_rawdata(validate(request1,["main","rawdata","Registrant Fax Ext"]))
+    registrant_email = validate(registrant_email, ["Registrant Email"])
+    registrant = validate(request1, ["main","owner"])
 
     if registrant:
-        request4 = await instance.run_worker_domain(url="https://api.viewdns.info/reversewhois/", q=registrant, name="rw_owner")
+        request4 = await instance.run_worker_domain(url="https://api.viewdns.info/reversewhois/", q=registrant, apikey=APIKEY, output="json", name="rw_owner")
     if registrant_email:
-        request5 = await instance.run_worker_domain(url="https://api.viewdns.info/reversewhois/", q=registrant_email,
-                                                    name="rw_email")
+        request5 = await instance.run_worker_domain(url="https://api.viewdns.info/reversewhois/", q=registrant_email, apikey=APIKEY, output="json", name="rw_email")
+
     return instance.result
 
 
@@ -30,9 +27,9 @@ if __name__ == "__main__":
         shutil.rmtree(PATH_RESULTS_DIR)
     os.mkdir(PATH_RESULTS_DIR)
 
-    collector = CollectorRequests(file=PATH_DOMAIN_FILE, apikey=APIKEY, output="json")
-    collector.save = SAVE_FILES
-    result = collector.run_async_worker( async_worker )
+    collector = CollectorRequests(file=PATH_DOMAIN_FILE)
+    collector.save = ['json, excel']
+    collector.run_async_worker( async_worker )
 
 
 

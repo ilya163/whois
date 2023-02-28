@@ -20,10 +20,10 @@ def init_logger():
     streamHandler.setFormatter(formatter)
     streamHandler.setLevel("INFO")
     logger.addHandler(streamHandler)
-    fileHandler = logging.FileHandler(filename="../log.txt", mode="w")
+    fileHandler = logging.FileHandler(filename="log.txt", mode="w")
     fileHandler.setFormatter(formatter)
     fileHandler.setLevel("INFO")
-    logger.addHandler(fileHandler)
+    # logger.addHandler(fileHandler)
     return logger
 
 logger = init_logger()
@@ -31,31 +31,34 @@ logger = init_logger()
 # ========== Create Time function ===========
 def f_format_time(f_time, in_format="%Y-%m-%dT%H:%M:%SZ", out_format="{0} ( с {1} {3} {2} {4} )"):
     ''' Функиця для формирования полей "Дата создания" и "Оплачен до"  '''
-    out_format = "{0} ( {1} {3} и {2} {4} )"
-    f_time = datetime.strptime(f_time,
-                               in_format)  # время в Unix
-    day = datetime.strftime(f_time, "%d")
-    month = ru_month[datetime.strftime(f_time, "%m")]
-    year = datetime.strftime(f_time, "%Y")
-    create_time_format = "{} {} {}".format(day, month, year)
-    duration_days = abs(f_time - datetime.now())
+    try:
+        out_format = "{0} ( {1} {3} и {2} {4} )"
+        f_time = datetime.strptime(f_time,
+                                   in_format)  # время в Unix
+        day = datetime.strftime(f_time, "%d")
+        month = ru_month[datetime.strftime(f_time, "%m")]
+        year = datetime.strftime(f_time, "%Y")
+        create_time_format = "{} {} {}".format(day, month, year)
+        duration_days = abs(f_time - datetime.now())
 
-    c_year =  int(duration_days.days / 365) # кол-во лет
-    c_month = int((duration_days.days - c_year * 365) / 30) # кол-во месяцев
+        c_year =  int(duration_days.days / 365) # кол-во лет
+        c_month = int((duration_days.days - c_year * 365) / 30) # кол-во месяцев
 
-    if c_year == 0 and c_month == 0:
-        p_del = r'\s\{1\}|\s\{2\}|\s\{3\}|\s[си]'
-    elif c_year == 0:
-        p_del = r'\s\{1\}|\s\{3\}|\sи'
-    elif c_month == 0:
-        p_del = r'\s\{2\}|\s\{4\}|\sи'
-    else:
-        p_del = ''
-    out_format = re.sub(p_del, '', out_format)
+        if c_year == 0 and c_month == 0:
+            p_del = r'\s\{1\}|\s\{2\}|\s\{3\}|\s[си]'
+        elif c_year == 0:
+            p_del = r'\s\{1\}|\s\{3\}|\sи'
+        elif c_month == 0:
+            p_del = r'\s\{2\}|\s\{4\}|\sи'
+        else:
+            p_del = ''
+        out_format = re.sub(p_del, '', out_format)
 
-    results = out_format.format(
-        create_time_format, c_year, c_month, f_year(c_year), f_month(c_month))
-    return results
+        results = out_format.format(
+            create_time_format, c_year, c_month, f_year(c_year), f_month(c_month))
+        return results
+    except:
+        return ''
 
 def f_year(year):
     if year == 1:
@@ -77,6 +80,7 @@ def f_month(month):
         return 'месяцев'
 
 def process_data_array(response, f_fields = lambda x: x, limit=10):
+    ''' Создает два списка: один с лимитом 10, другой цельный '''
     domains = {}
     try:
         length = len(response)
@@ -86,19 +90,24 @@ def process_data_array(response, f_fields = lambda x: x, limit=10):
         return domains, domains_all
     except Exception as err:
         logger.error(f"Ошибка в функции для обработки массивов: {str(err)}")
+        return [], []
 
 
-def xls_worker_dynamic_type(response, header=''):
+def xls_worker_dynamic_type(response, header='', typeList = False):
     result = []
     try:
-        if type(response["name"][0]) == str:
+        if typeList:
+            if len(response["name"]) == 0:
+                return [header, '']
             st = ''
             for i in response["name"]:
                 st += i+"\n"
             if response["remains"] != 0:
                 st += "и ещё " + str(response["remains"]) + " адреса"
             result = [header, st]
-        elif type(response["name"][0]) == dict:
+        else:
+            if len(response["name"]) == 0:
+                return [[header, '']]
             for i in response["name"]:
                 st = ''
                 for j in i.values():
@@ -109,7 +118,8 @@ def xls_worker_dynamic_type(response, header=''):
     except Exception as err:
         logger.error(f"Ошибка в функции для обработки массивов excel: {str(err)}")
 
-def xls_worker_dynamic_type_all(response, header=""):
+
+def xls_worker_dynamic_type_all(response, header=''):
     excel = []
     if type(response[0]) == dict:
         excel.append(header)
@@ -132,20 +142,29 @@ def field_ns_server(response):
 
 
 def fieldPrivatePerson(value):
-    return "Частное лицо" if value == "Private Registration" else value
-
-def checkEmpty(value, nextvalue):
-    return nextvalue if len(value) < 1 else value
+    try:
+        return "Частное лицо" if value == "Private Registration" else value
+    except:
+        return ''
 
 def get_status(response):
-    return "Подтвержден" if response[0].find("VERIFIED") else "Не подтвержден"
+    try:
+        if response[0].find("VERIFIED"):
+            return "Подтвержден"
+    except:
+        return ""
 
 def regex_rawdata(rawdata):
-    value = re.findall("^(.[^:]+):(?:\s+)?(.+)\n?", rawdata, re.MULTILINE)
-    if value:
-        return {i[0]:i[1] for i in value}
-    else:
-        return rawdata
+    try:
+        if rawdata:
+            value = re.findall("^(.[^:]+):(?:\s+)?(.+)\n?", rawdata, re.MULTILINE)
+            if value:
+                return {i[0]:i[1] for i in value}
+            else:
+                return rawdata
+    except:
+        return ''
+
 
 
 
@@ -159,7 +178,23 @@ def save_to_file(result, path):
     with open(path,"w") as file:
         json.dump(result, file, indent=3, ensure_ascii=False)
 
-def test():
-    print("YES TEST")
+def read_to_json(filename):
+    path = r'domains/source/' + filename
+    if os.path.exists(path):
+        with open(path, "r") as file:
+            return json.load(file)
+
+def validate(massive, direction, default=''):
+    ''' Валидация поступающих данных с АПИ'''
+    try:
+        if len(direction) == 1:
+            return massive[direction[0]]
+        else:
+            if massive[direction[0]]:
+                return validate(massive[direction[0]], direction[1:])
+    except:
+        return default
+
+
 
 

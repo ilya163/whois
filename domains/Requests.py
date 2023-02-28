@@ -10,23 +10,27 @@ class Requests:
         url += request.pop("url")
         temp = True
         for key, value in request.items():
+            if value.count(' ') > 0:
+                value = "'" + str(value) + "'"
             if temp:
                 url += "?" + str(key) + "=" + str(value)
                 temp = False
             else:
                 url += "&" + str(key) + "=" + str(value)
-        return url
+        return str(url)
 
     @staticmethod
-    async def run(url):
+    async def run(url, name):
         ''' Запуска ассинхронного запроса '''
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.get(url, timeout=10) as resp:
-                    result = await resp.json()
-                    return result
-        except Exception as err:
-            logger.error(f"Ошибка при отправке API запроса: {str(err)}")
+                async with session.get(url) as resp:
+                    return await resp.json()
+        except asyncio.TimeoutError:
+            logger.error(f"Вызвано исключение из-за ожидания АПИ {name}")
+        except:
+            logger.error(f"Ошибка при отправке API запроса {url}: {await resp.text()}")
+
 
 
     # ================== Методы для тестирования =============

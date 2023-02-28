@@ -20,9 +20,9 @@ class saveJson:
             for name in result:
                 self.save(result[name], name)
 
-            # logger.info("Данные в формате JSON записаны")
+            # logger.info("Данные в формате JSON успешно записаны")
         except Exception as err:
-            logger.error(f"Ошибка при записи в JSON файл: {str(err)}")
+            logger.error(f"Ошибка при запуске обработчика Json: {str(err)}")
 
     def save(self, result, filename):
         FOLDER_DOMAIN = os.path.join(PATH_RESULTS_DIR, self.domain)
