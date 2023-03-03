@@ -13,12 +13,13 @@ async def async_worker(instance):
     registrant_email = validate(registrant_email, ["Registrant Email"])
     registrant = validate(request1, ["main","owner"])
 
-    if registrant:
+
+    if registrant and registrant != "REDACTED FOR PRIVACY":
         request4 = await instance.run_worker_domain(url="https://api.viewdns.info/reversewhois/", q=registrant, apikey=APIKEY, output="json", name="rw_owner")
     if registrant_email:
         request5 = await instance.run_worker_domain(url="https://api.viewdns.info/reversewhois/", q=registrant_email, apikey=APIKEY, output="json", name="rw_email")
 
-    return instance.result
+    return instance.save_result_domain
 
 
 if __name__ == "__main__":
@@ -27,8 +28,7 @@ if __name__ == "__main__":
         shutil.rmtree(PATH_RESULTS_DIR)
     os.mkdir(PATH_RESULTS_DIR)
 
-    collector = CollectorRequests(file=PATH_DOMAIN_FILE)
-    collector.save = ['json, excel']
+    collector = CollectorRequests(path_file_with_domains=PATH_FILE_WITH_DOMAINS, setting_save_to_file=SETTING_SAVE_TO_FILE)
     collector.run_async_worker( async_worker )
 
 

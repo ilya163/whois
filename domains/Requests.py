@@ -1,7 +1,7 @@
 from .my_additional import *
 
 class Requests:
-    ''' Класс для работы с запросами '''
+    ''' Статичный класс для работы с запросами '''
 
     @staticmethod
     def generate_url(request):
@@ -36,14 +36,25 @@ class Requests:
     # ================== Методы для тестирования =============
 
     @staticmethod
+    async def run_test(url, name):
+        ''' Запуска ассинхронного запроса '''
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url) as resp:
+                    return await resp.json()
+        except asyncio.TimeoutError:
+            logger.error(f"Вызвано исключение из-за ожидания АПИ {name}")
+        except:
+            logger.error(f"Ошибка при отправке API запроса {url}: {await resp.text()}")
+
+    @staticmethod
     async def read_api_test(domain, name):
         ''' Чтение данных из файлов для теста '''
         path = os.path.join(PATH_TESTING_DIR, domain, name)
         if os.path.exists(path):
             with open(path, "r") as file:
                 return json.load(file)
-        else:
-            raise "Отсутствует testing файл"
+
 
     @staticmethod
     async def write_api_test(domain, name, answer):

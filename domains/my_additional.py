@@ -23,7 +23,7 @@ def init_logger():
     fileHandler = logging.FileHandler(filename="log.txt", mode="w")
     fileHandler.setFormatter(formatter)
     fileHandler.setLevel("INFO")
-    # logger.addHandler(fileHandler)
+    logger.addHandler(fileHandler)
     return logger
 
 logger = init_logger()
@@ -93,7 +93,33 @@ def process_data_array(response, f_fields = lambda x: x, limit=10):
         return [], []
 
 
-def xls_worker_dynamic_type(response, header='', typeList = False):
+def xls_worker_dynamic_type(response, typeList = False):
+    result = []
+    try:
+        if typeList:
+            if len(response["name"]) == 0:
+                return ''
+            st = ''
+            for i in response["name"]:
+                st += i+"\n"
+            if response["remains"] != 0:
+                st += "и ещё " + str(response["remains"]) + " адресов"
+            return st
+        else:
+            if len(response["name"]) == 0:
+                return ''
+            result = ''
+            for i in response["name"]:
+                st = ''
+                for j in i.values():
+                    st += j + '\n'
+                # result.append(st)
+                result += st +'\n'
+            return result
+    except Exception as err:
+        logger.error(f"Ошибка в функции для обработки массивов excel: {str(err)}")
+
+def word_worker_dynamic_type(response, header='', typeList = False):
     result = []
     try:
         if typeList:
@@ -119,6 +145,7 @@ def xls_worker_dynamic_type(response, header='', typeList = False):
         logger.error(f"Ошибка в функции для обработки массивов excel: {str(err)}")
 
 
+
 def xls_worker_dynamic_type_all(response, header=''):
     excel = []
     if type(response[0]) == dict:
@@ -132,8 +159,10 @@ def xls_worker_dynamic_type_all(response, header=''):
 
 
 def field_ns_server(response):
-    result = ''
+    if not response:
+        return ''
     try:
+        result = ''
         for i in response:
             result += i + '\n'
         return result
@@ -164,12 +193,6 @@ def regex_rawdata(rawdata):
                 return rawdata
     except:
         return ''
-
-
-
-
-
-
 
 def dirs(obj):
     return [i for i in obj.__dir__() if i[0] != "_"]
