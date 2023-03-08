@@ -6,28 +6,28 @@ class SaveExcel:
 
     @classmethod
     def save(cls, name_domain,  response):
-            try:
-                if not os.path.exists(PATH_EXCEL_FILE):
-                    wb = Workbook()
-                else:
-                    wb = load_workbook(PATH_EXCEL_FILE)
-                ws = wb.active
+        try:
+            if not os.path.exists(PATH_EXCEL_FILE):
+                wb = Workbook()
+            else:
+                wb = load_workbook(PATH_EXCEL_FILE)
+            ws = wb.active
 
-                results = cls.formed_data(response)
+            results = cls.formed_data(response)
 
-                column = ws.max_column+1
-                for row, value in enumerate(results, 1):
-                    ws.cell(row=row, column=column, value=value)
+            column = ws.max_column+1
+            for row, value in enumerate(results, 1):
+                ws.cell(row=row, column=column, value=str(value))
 
-                wb.save(PATH_EXCEL_FILE)
-            except Exception as err:
-                logger.error(f"Ошибка при обработке данных для Excel: {str(err)}")
+            wb.save(PATH_EXCEL_FILE)
+        except Exception as err:
+            logger.error(f"Ошибка при обработке данных для Excel: {str(err)}")
 
     @staticmethod
     def formed_header():
         return (
-            "Анализируемый домен", "IP-адрес", "Владелец", "Регистратор", "Создан", "На последнем ip-адресе",
-            "Оплачен до", "Контакты", "Статус","Список DNS-серверов",'IP-адреса на которых размещался домен',
+            "Анализируемый домен", "Контакты", "IP-адрес", "Владелец", "Регистратор", "Создан", "На последнем ip-адресе",
+            "Оплачен до", "Статус","Список DNS-серверов",'IP-адреса на которых размещался домен',
             'Прочие домены на сервере','Прочие домены принадлежащие владельцу'
         )
 
@@ -38,32 +38,28 @@ class SaveExcel:
             if "main" in response:
                 main = response["main"]
                 results = [
-                    main.get("domain"),
-                    main.get("ip"),
-                    main.get("owner"),
-                    main.get("registrar"),
-                    main.get("create_time"),
-                    main.get("on_last_ip_address"),
-                    main.get("expires"),
-                    main.get("contact"),
-                    main.get("status"),
-                    field_ns_server(main.get("ns"))
+                    main.get("domain",""),
+                    main.get("ip",""),
+                    main.get("owner",""),
+                    main.get("registrar",""),
+                    main.get("create_time",""),
+                    main.get("on_last_ip_address",""),
+                    main.get("expires",""),
+                    main.get("status",""),
+                    field_ns_server(main.get("ns",""))
                            ]
 
-                if "ip_history" in main:
-                    if len(main["ip_history"]) > 0:
-                        result = xls_worker_dynamic_type(main["ip_history"])
-                        results.append(result)
+                result = worker_write_list(main.get("contact"))
+                results.insert(1,result)
 
-                if "other_domain" in main:
-                    if len(main["other_domain"]) > 0:
-                        result = xls_worker_dynamic_type(main["other_domain"], typeList=True)
-                        results.append(result)
+                result = worker_dynamic_type(main.get("ip_history"))
+                results.append(result)
 
-                if "rw_domain" in main:
-                    if len(main["rw_domain"]) > 0:
-                        result = xls_worker_dynamic_type(main["rw_domain"])
-                        results.append(result)
+                result = worker_dynamic_type(main.get("other_domain"), typeList=True)
+                results.append(result)
+
+                result = worker_dynamic_type(main.get("rw_domain"), typeList=True)
+                results.append(result)
 
                 return results
 
