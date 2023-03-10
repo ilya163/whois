@@ -17,7 +17,7 @@ class SaveJson:
         try:
             if not os.path.exists(FOLDER_DOMAIN):
                 os.mkdir(FOLDER_DOMAIN)
-            with open(os.path.join(FOLDER_DOMAIN, filename + '.json'), "a", encoding='utf-8') as file:
+            with open(os.path.join(FOLDER_DOMAIN, filename + '.json'), "w", encoding='utf-8') as file:
                 json.dump(result, file, indent=3, ensure_ascii=False)
         except Exception as err:
             logger.error(f"Ошибка при записи в JSON файл: {str(err)}")

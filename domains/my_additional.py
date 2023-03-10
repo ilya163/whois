@@ -1,4 +1,5 @@
 from .settings import *
+from .Serializer import *
 import os
 import logging
 from datetime import datetime
@@ -7,7 +8,6 @@ import json
 import shutil
 import asyncio
 import aiohttp
-from collections import defaultdict
 
 ru_month = {"01":"января","02":"февраля","03":"марта","04":"апреля","05":"мая","06":"июня","07":"июля","08":"августа","09":"сентября","10":"октября","11":"ноября","12":"декабря"}
 
@@ -20,7 +20,7 @@ def init_logger():
     streamHandler.setFormatter(formatter)
     streamHandler.setLevel("INFO")
     logger.addHandler(streamHandler)
-    fileHandler = logging.FileHandler(filename="log.txt", mode="w")
+    fileHandler = logging.FileHandler(filename="log.log", mode="w")
     fileHandler.setFormatter(formatter)
     fileHandler.setLevel("INFO")
     logger.addHandler(fileHandler)
@@ -32,14 +32,17 @@ logger = init_logger()
 def f_except(func):
     ''' Декоратор для функций '''
     def inner(response, *args, **kwargs):
+        if not response:
+            return ""
         try:
             return func(response, *args, **kwargs)
-        except:
-            # print("Ошибка в функции " + str(func.__name__))
+        except Exception as err:
+            print("Ошибка в функции " + str(func.__name__) + ":" + str(err))
             return response
     return inner
 
 # ========== Create Time function ===========
+@f_except
 def f_format_time(f_time, in_format="%Y-%m-%dT%H:%M:%SZ", out_format="{0} ( с {1} {3} {2} {4} )"):
     ''' Функиця для формирования полей "Дата создания" и "Оплачен до"  '''
     f_time = datetime.strptime(f_time,
@@ -89,16 +92,62 @@ def f_month(month):
 def process_data_array(response, f_fields = lambda x: x, limit=10):
     ''' Создает два списка: один с лимитом 10, другой цельный '''
     domains = {}
-    if not response:
+    try:
+        length = len(response)
+        domains_all = [f_fields(i) for i in response]
+        domains["name"] = domains_all[:limit]
+        domains["remains"] = length - limit if length > limit else 0
+        return domains, domains_all
+    except:
         domains["name"] = []
         domains["remains"] = 0
         return domains, []
-    length = len(response)
-    domains_all = [f_fields(i) for i in response]
-    domains["name"] = domains_all[:limit]
-    domains["remains"] = length - limit if length > limit else 0
-    return domains, domains_all
 
+@f_except
+def get_ip_country(response):
+    st = ""
+    st += response["ip"]
+    st += " ( " + response["location"] + " ) "
+    return st
+
+@f_except
+def get_metadata(metadata):
+    metadata = Serializer(metadata)
+    data = {"Название кампании:": metadata.get("companyNames > 0"),
+                    "Заголовок:": metadata.get("meta > title"),
+                    "Дескриптор:": metadata.get("meta > description"),
+                    "Телефон:": [i["phoneNumber"] for i in metadata.get("phones")],
+                    "Адрес": [i for i in metadata.get("postalAddresses")],
+                    "Соцсети": metadata.get("socialLinks"),
+                    }
+    return data
+@f_except
+def dict_to_str(massive, key=""):
+    st = ''
+    if type(massive) == dict:
+        for key, item in massive.items():
+            if type(item) == (str, int):
+                if item:
+                    st += key + " " + massive + '\n'
+            else:
+                st += dict_to_str(item, key)
+            st += "\n"
+    if type(massive) == list:
+        st += key + " "
+        for item in massive:
+            st += item + ', '
+        st += "\n"
+    if type(massive) == str:
+        if massive:
+            st += key + " " + massive + '\n'
+    return st
+
+
+
+
+
+
+@f_except
 def worker_write_list(response, header=''):
     if not response:
         return ''
@@ -162,7 +211,7 @@ def word_worker_dynamic_type(response, header='', typeList = False):
         logger.error(f"Ошибка в функции для обработки массивов word: {str(err)}")
 
 
-
+@f_except
 def xls_worker_dynamic_type_all(response, header=''):
     excel = []
     if type(response[0]) == dict:
@@ -175,6 +224,7 @@ def xls_worker_dynamic_type_all(response, header=''):
     return excel
 
 
+@f_except
 def field_ns_server(response):
     if not response:
         return ''
@@ -188,21 +238,67 @@ def field_ns_server(response):
 
 
 @f_except
+def get_linked_email(emails):
+    result = []
+    for email in emails:
+        r_email = {}
+        r_email["email"] = email["value"]
+        if email["sources"]:
+            r_email["sources"] = []
+            for source in email["sources"]:
+                r_email["sources"].append({
+                     "domain": source["domain"],
+                     "still_on_page": source["still_on_page"],
+                     })
+        result.append(r_email)
+    return result
+
+@f_except
+def linked_email_save(emails):
+    st = ''
+    for email in emails:
+        st += email["email"] + '\n'
+        st += "\tИсточники: \n"
+        if email["sources"]:
+            for source in email["sources"]:
+                st += "_____" + source["domain"]
+                if source["still_on_page"]:
+                    st += " (до сих пор на странице)\n"
+                else:
+                    st += " (удален со страницы)\n"
+    return st
+
+
+
+
+
+@f_except
+def get_subdomains(domains):
+    result = []
+    for domain in domains:
+        result.append(domain["domain"])
+    return result
+
+@f_except
 def field_private_person(value):
     if value == "Private Registration" or value == "":
         return "Частное лицо"
-    raise
+    else:
+        return ""
 
 @f_except
 def get_status(response):
     if response[0].find("VERIFIED") != -1:
         return "Подтвержден"
-    raise
+    else:
+        return "Не подтвержден"
 
+@f_except
 def regex_rawdata(rawdata):
     value = re.findall("^(.[^:]+):(?:\s+)?(.+)\n?", rawdata, re.MULTILINE)
     if value:
         return {i[0]:i[1] for i in value}
+
 
 
 def dirs(obj):
@@ -228,8 +324,6 @@ def validate(massive, direction, default=""):
                 return validate(massive[direction[0]], direction[1:])
     except:
         return default
-
-
 
 def find_contacts(raw):
     ''' Поиск контактов в whois '''

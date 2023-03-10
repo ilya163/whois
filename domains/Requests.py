@@ -1,4 +1,8 @@
 from .my_additional import *
+from selenium import webdriver
+from selenium.common.exceptions import WebDriverException
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 
 class Requests:
     ''' Статичный класс для работы с запросами '''
@@ -7,7 +11,7 @@ class Requests:
     def generate_url(request):
         ''' Генерация URL из данных '''
         url = ''
-        url += request.pop("url")
+        url += request.pop("main_url")
         temp = True
         for key, value in request.items():
             if value.count(' ') > 0:
@@ -25,12 +29,48 @@ class Requests:
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(url) as resp:
-                    return await resp.json()
+                    if resp.status == 200:
+                        return await resp.json()
+                    else:
+                        logger.error(f"Api отработал со статусом {resp.status}: {await resp.text()}")
         except asyncio.TimeoutError:
             logger.error(f"Вызвано исключение из-за ожидания АПИ {name}")
         except:
             logger.error(f"Ошибка при отправке API запроса {url}: {await resp.text()}")
 
+    @staticmethod
+    def init_driver_chrome():
+
+        options = webdriver.ChromeOptions()
+        options.add_argument("headless")  # silently run Chrome
+        options.add_argument('--ignore-certificate-errors')
+        options.add_argument('--allow-running-insecure-content')
+        driver = webdriver.Chrome(chrome_options=options)
+        return driver
+    @staticmethod
+    async def run_selenium(driver, url, domain_name):
+        try:
+            # driver.implicitly_wait(10)
+            driver.get(url)
+            await asyncio.sleep(2)
+
+            driver.set_window_size(800, 600)
+            FOLDER_DOMAIN = os.path.join(PATH_RESULTS_DIR, domain_name)
+            if not os.path.exists(FOLDER_DOMAIN):
+                os.mkdir(FOLDER_DOMAIN)
+            driver.get_screenshot_as_file(FOLDER_DOMAIN + "/screenshot.png")
+
+            if driver.execute_script("return document.readyState") == "complete":
+                state = "Доступен"
+            else:
+                state = "Не доступен"
+            return {"state": state}
+        except WebDriverException:
+            logger.error("Вызвано исключение в Selenium из-за незащищенного соединения к сайту")
+            return {"state": "Не доступен"}
+        except Exception as err:
+            logger.error(f"Вызвано исключение в Selenium АПИ {domain_name} : {str(err)}")
+            return {"state": "Не доступен"}
 
 
     # ================== Методы для тестирования =============

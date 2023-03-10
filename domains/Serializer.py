@@ -1,5 +1,4 @@
 class Serializer:
-
     def __init__(self, response):
         self.response = response
         self.results = {}

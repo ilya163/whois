@@ -1,4 +1,5 @@
 from .Domains import *
+from .Requests import *
 
 class CollectorRequests:
     ''' Управляющий класс доменов '''
@@ -7,7 +8,7 @@ class CollectorRequests:
         self.save_result = None
         self.list_domains = self.get_file_domains(path_file_with_domains)
         self.setting_save_to_file = setting_save_to_file
-
+        self.driver_chrome = Requests.init_driver_chrome()  #chrome Driver
 
     def run_async_worker(self, async_worker):
         ''' Запускаем ассинхронный воркер для каждого домена '''
@@ -22,7 +23,7 @@ class CollectorRequests:
             ''' Перебираем список доменов и запускам таски '''
             try:
                 logger.info(f"Запуск {num} {name_domain}")
-                instance = Domains(name_domain, self.setting_save_to_file)  # Create new instance domain
+                instance = Domains(name_domain, self.setting_save_to_file, self.driver_chrome)  # Create new instance domain
                 async_run = async_worker(instance)         # create coroutine | Вывел корутину в файл main.py для удобства
                 result = asyncio.run(async_run)            # run async task { 1,2,3 .. N }
 
@@ -50,10 +51,13 @@ class CollectorRequests:
             logger.error("Ошибка при считывании файла: " + str(err))
         return results
 
+
     def finally_process(self):
         try:
             if "excel" in self.setting_save_to_file:
                 SaveExcel.finally_xls()
+            if self.driver_chrome:
+                self.driver_chrome.quit()
         except Exception as err:
             logger.error(f"Ошибка на завершающей функции скрипта {str(err)}")
     def __repr__(self):
